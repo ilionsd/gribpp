@@ -13,14 +13,14 @@
 #include <limits>
 
 
+#include "../../utility/enum_hash.hpp"
 #include "octet_fields.hpp"
-#include "../meta/meta_case.hpp"
 #include "../reader/octet_reader.hpp"
 
 namespace gribpp {
 	namespace octet_mapping {
 
-		using map_type = std::unordered_map<fields, std::pair<std::size_t, std::size_t>>;
+		using map_type = std::unordered_map<fields, std::pair<std::size_t, std::size_t>, utility::enum_hash<fields>>;
 
 		enum class grib_edition {
 			V1 = 1,
@@ -45,6 +45,9 @@ namespace gribpp {
 
 			section_map(section_map &&other) noexcept :
 				mMapping(std::move(other.mMapping))
+			{};
+			section_map(std::initializer_list<typename map_type::value_type> initList) noexcept :
+				mMapping(initList)
 			{};
 
 			inline section_map& operator= (const section_map& other) {
@@ -118,8 +121,12 @@ namespace gribpp {
 
 
 		template<grib_edition V, unsigned N>
-		class section_map_ne : public section_map {
+		class section_map_ne :
+			public section_map
+		{
 		public:
+			using section_map::section_map;
+
 			constexpr unsigned section_number() const {
 				return N;
 			}
@@ -167,7 +174,7 @@ namespace gribpp {
 		{
 			//-- Section<0> constants definition --
 			constexpr std::size_t GRIB_MESSAGE_SIZE = 4;
-			constexpr char* const GRIB_MESSAGE = "GRIB";
+			constexpr const char* GRIB_MESSAGE = "GRIB";
 
 			//--  --
 			std::unique_ptr<char[]> octets = std::make_unique<char[]>(GRIB_MESSAGE_SIZE);

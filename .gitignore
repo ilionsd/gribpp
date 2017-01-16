@@ -1,7 +1,14 @@
 bin/*
 bin64/*
+Debug/*
+Release/*
 data/*
 doc/*
+
+
+#
+##
+###Eclipse IDE 
 
 .metadata
 bin/
