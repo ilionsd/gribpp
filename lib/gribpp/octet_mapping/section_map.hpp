@@ -17,12 +17,14 @@
 #include "octet_fields.hpp"
 #include "../reader/octet_reader.hpp"
 
+
+
 namespace gribpp {
 	namespace octet_mapping {
 
 		using map_type = std::unordered_map<fields, std::pair<std::size_t, std::size_t>, utility::enum_hash<fields>>;
 
-		enum class grib_edition {
+		enum class grib_edition : std::uint8_t {
 			V1 = 1,
 			V2 = 2
 		};
@@ -31,22 +33,22 @@ namespace gribpp {
 
 		class section_map {
 		public:
-			section_map() noexcept :
+			section_map() :
 				mMapping()
 			{};
 
-			section_map(const grib_edition edition) noexcept :
+			section_map(const grib_edition edition) :
 				mMapping()
 			{};
 
-			section_map(const section_map& other) noexcept :
+			section_map(const section_map& other) :
 				mMapping(other.mMapping)
 			{};
 
-			section_map(section_map &&other) noexcept :
+			section_map(section_map &&other) :
 				mMapping(std::move(other.mMapping))
 			{};
-			section_map(std::initializer_list<typename map_type::value_type> initList) noexcept :
+			section_map(std::initializer_list<typename map_type::value_type> initList) :
 				mMapping(initList)
 			{};
 
@@ -120,135 +122,170 @@ namespace gribpp {
 		};
 
 
+
+#define COMMON_SECTION_MAP_VN(V, N)		\
+	using section_map::section_map;		\
+										\
+	inline unsigned section_number() const {		\
+		return N;									\
+	};												\
+													\
+	inline grib_edition edition() const {		\
+		return V;									\
+	};
+
+
 		template<grib_edition V, unsigned N>
-		class section_map_ne :
+		struct section_map_vn :
 			public section_map
 		{
-		public:
-			using section_map::section_map;
+			COMMON_SECTION_MAP_VN(V, N)
 
-			constexpr unsigned section_number() const {
-				return N;
-			}
-
-			constexpr grib_edition edition() const {
-				return V;
-			}
+			//-- For unexpected V and N --
+			static
+			_stdex::optional<section_map_vn<V, N>>
+				make_map(reader::octet_reader& reader)
+			{
+				//static_assert(false, "Not implemented for grib version or section number");
+				return {};
+			};
 		};
 
-
-
-		template<grib_edition Version, unsigned Number>
-		_stdex::optional<section_map_ne<Version, Number>>
-			make_section_map(reader::octet_reader& reader)
-		{
-			static_assert(false, "Not implemented for grib version or section number");
-			return {};
-		};
 
 		//-- GRIB V1 --
-
 		template<>
-		_stdex::optional<section_map_ne<grib_edition::V1, 0>>
-			make_section_map(reader::octet_reader& reader)
+		struct section_map_vn<grib_edition::V1, 0> :
+			public section_map
 		{
-			static_assert(false, "Not yet implemented");
-			return {};
+
+			COMMON_SECTION_MAP_VN(grib_edition::V1, 0)
+
+			//-- S0 --
+			static
+			_stdex::optional<section_map_vn<grib_edition::V1, 0>>
+				make_map(reader::octet_reader& reader)
+			{
+				//static_assert(false, "Not yet implemented");
+				return {};
+			};
 		};
 
 		template<>
-		_stdex::optional<section_map_ne<grib_edition::V1, 1>>
-			make_section_map(reader::octet_reader& reader)
+		struct section_map_vn<grib_edition::V1, 1> :
+			public section_map
 		{
-			static_assert(false, "Not yet implemented");
-			return {};
-		}
 
+			COMMON_SECTION_MAP_VN(grib_edition::V1, 1)
+
+			//-- S1 --
+			static
+			_stdex::optional<section_map_vn<grib_edition::V1, 1>>
+				make_map(reader::octet_reader& reader)
+			{
+				//static_assert(false, "Not yet implemented");
+				return {};
+			};
+		};
 
 
 		//-- GRIB V2 --
 
 		template<>
-		_stdex::optional<section_map_ne<grib_edition::V2, 0>>
-			make_section_map(reader::octet_reader& reader)
+		struct section_map_vn<grib_edition::V2, 0> :
+			public section_map
 		{
-			//-- Section<0> constants definition --
-			constexpr std::size_t GRIB_MESSAGE_SIZE = 4;
-			constexpr const char* GRIB_MESSAGE = "GRIB";
 
-			//--  --
-			std::unique_ptr<char[]> octets = std::make_unique<char[]>(GRIB_MESSAGE_SIZE);
-			std::size_t pos = reader.get_pos();
+			COMMON_SECTION_MAP_VN(grib_edition::V2, 0)
 
-			reader(GRIB_MESSAGE_SIZE) >> octets;
-			int cmp = strncmp(GRIB_MESSAGE, octets.get(), GRIB_MESSAGE_SIZE);
-			if (cmp) {
-				//-- not a grib file --
-				return {};
-			}
+			//-- S0 --
+			static
+			_stdex::optional<section_map_vn<grib_edition::V2, 0>>
+				make_map(reader::octet_reader& reader)
+			{
+				//-- Section<0> constants definition --
+				constexpr std::size_t GRIB_MESSAGE_SIZE = 4;
+				constexpr const char* GRIB_MESSAGE = "GRIB";
 
-			section_map_ne<grib_edition::V2, 0> sectionMap = {
-				{ fields::GRIB_MESSAGE,{ 0, 3 } },
-				{ fields::RESERVED01,{ 4, 5 } },
-				{ fields::MASTER_TABLE_NUMBER,{ 6, 6 } },
-				{ fields::EDITION_NUMBER,{ 7, 7 } },
-				{ fields::TOTAL_LENGTH,{ 8, 15 } }
+				//--  --
+				std::unique_ptr<char[]> octets = std::make_unique<char[]>(GRIB_MESSAGE_SIZE);
+				std::size_t pos = reader.get_pos();
+
+				reader(GRIB_MESSAGE_SIZE) >> octets;
+				int cmp = strncmp(GRIB_MESSAGE, octets.get(), GRIB_MESSAGE_SIZE);
+				if (cmp) {
+					//-- not a grib file --
+					return {};
+				}
+
+				section_map_vn<grib_edition::V2, 0> sectionMap {
+					{ fields::GRIB_MESSAGE,{ 0, 3 } },
+					{ fields::RESERVED01,{ 4, 5 } },
+					{ fields::MASTER_TABLE_NUMBER,{ 6, 6 } },
+					{ fields::EDITION_NUMBER,{ 7, 7 } },
+					{ fields::TOTAL_LENGTH,{ 8, 15 } }
+				};
+
+				sectionMap.shift_mapping(pos);
+				return sectionMap;
 			};
-
-			sectionMap.shift_mapping(pos);
-			return sectionMap;
 		};
+
 
 		template<>
-		_stdex::optional<section_map_ne<grib_edition::V2, 1>>
-			make_section_map<grib_edition::V2, 1>(reader::octet_reader& reader)
+		struct section_map_vn<grib_edition::V2, 1> :
+			public section_map
 		{
-			constexpr std::size_t CONTENT_MAX_SIZE = 4;
 
-			std::size_t sectonPos = reader.get_pos();
-			std::unique_ptr<char[]> octets = std::make_unique<char[]>(CONTENT_MAX_SIZE);
+			COMMON_SECTION_MAP_VN(grib_edition::V2, 1)
 
-			//-- Length of section (4) --
-			reader(4) >> octets;
-			std::size_t _0 = octets[0];
-			std::size_t _1 = octets[1] << 8;
-			std::size_t _2 = octets[2] << 16;
-			std::size_t _3 = octets[3] << 24;
-			std::size_t sectionSize = octets[0] | octets[1] << 8 | octets[2] << 16 | octets[3] << 24;
+			//-- S1 --
+			static
+			_stdex::optional<section_map_vn<grib_edition::V2, 1>>
+				make_map(reader::octet_reader& reader)
+			{
+				constexpr std::size_t CONTENT_MAX_SIZE = 4;
 
-			//-- Section number (1) --
-			char sectionNumber;
-			reader >> sectionNumber;
-			if (sectionNumber != 1) {
-				//-- not 1st section --
-				return {};
-			}
+				std::size_t sectonPos = reader.get_pos();
+				std::unique_ptr<char[]> octets = std::make_unique<char[]>(CONTENT_MAX_SIZE);
 
-			section_map_ne<grib_edition::V2, 1> sectionMap = {
-				{ fields::SECTION_LENGTH,{ 0, 3 } },
-				{ fields::SECTION_NUMBER,{ 4, 4 } },
-				{ fields::ORIGINATING_CENTER_ID,{ 5, 6 } },
-				{ fields::ORIGINATING_SUBCENTER_ID,{ 7, 8 } },
-				{ fields::MASTER_TABLES_VERSION_NUMBER,{ 9, 9 } },
-				{ fields::LOCAL_TABLES_VERSION_NUMBER,{ 10, 10 } },
-				{ fields::SIGNIFICANCE_OF_REFERENCE_TIME,{ 11, 11 } },
-				{ fields::YEAR,{ 12, 13 } },
-				{ fields::MONTH,{ 14, 14 } },
-				{ fields::DAY,{ 15, 15 } },
-				{ fields::HOUR,{ 16, 16 } },
-				{ fields::MINUTE,{ 17, 17 } },
-				{ fields::SECOND,{ 18, 18 } },
-				{ fields::PRODUCTION_STATUS_OF_DATA,{ 19, 19 } },
-				{ fields::TYPE_OF_DATA,{ 20, 20 } },
-				{ fields::RESERVED02,{ 21, sectionSize - 21 } }
+				//-- Length of section (4) --
+				reader(4) >> octets;
+				std::size_t _0 = octets[0];
+				std::size_t _1 = octets[1] << 8;
+				std::size_t _2 = octets[2] << 16;
+				std::size_t _3 = octets[3] << 24;
+				std::size_t sectionSize = octets[0] | octets[1] << 8 | octets[2] << 16 | octets[3] << 24;
+
+				//-- Section number (1) --
+				char sectionNumber;
+				reader >> sectionNumber;
+				if (sectionNumber != 1) {
+					//-- not 1st section --
+					return {};
+				}
+
+				section_map_vn<grib_edition::V2, 1> sectionMap {
+					{ fields::SECTION_LENGTH,{ 0, 3 } },
+					{ fields::SECTION_NUMBER,{ 4, 4 } },
+					{ fields::ORIGINATING_CENTER_ID,{ 5, 6 } },
+					{ fields::ORIGINATING_SUBCENTER_ID,{ 7, 8 } },
+					{ fields::MASTER_TABLES_VERSION_NUMBER,{ 9, 9 } },
+					{ fields::LOCAL_TABLES_VERSION_NUMBER,{ 10, 10 } },
+					{ fields::SIGNIFICANCE_OF_REFERENCE_TIME,{ 11, 11 } },
+					{ fields::YEAR,{ 12, 13 } },
+					{ fields::MONTH,{ 14, 14 } },
+					{ fields::DAY,{ 15, 15 } },
+					{ fields::HOUR,{ 16, 16 } },
+					{ fields::MINUTE,{ 17, 17 } },
+					{ fields::SECOND,{ 18, 18 } },
+					{ fields::PRODUCTION_STATUS_OF_DATA,{ 19, 19 } },
+					{ fields::TYPE_OF_DATA,{ 20, 20 } },
+					{ fields::RESERVED02,{ 21, sectionSize - 21 } }
+				};
+				sectionMap.shift_mapping(sectonPos);
+				return sectionMap;
 			};
-			sectionMap.shift_mapping(sectonPos);
-			return sectionMap;
 		};
-
-
-
-		
 	};	//-- namespace octet_mapping --
 };	//-- namespace gribpp --
 

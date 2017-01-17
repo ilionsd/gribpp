@@ -114,34 +114,17 @@ namespace gribpp {
 		inline octet_reader open_grib(const std::string &fileName) {
 			return open_grib(fileName.c_str());
 		};
-		/*
+
 		template<typename F>
-			typename std::enable_if<type_traits::is_specialization<std::result_of<F>, _stdex::optional>, typename std::result_of<F>::type::value_type>::type
-			try_read(F func, octet_reader& reader)
+		auto try_read(F func, octet_reader& reader) -> _stdex::optional<decltype(func(reader))>
 		{
 			std::size_t initPos = reader.get_pos();
-			_stdex::optional<std::result_of<F>> optRes = func(reader);
+			_stdex::optional<decltype(func(reader))> optRes = func(reader);
 			if (!optRes)
 				reader.set_pos(initPos);
 			return optRes;
 		};
 
-
-		template<typename F>
-			typename std::enable_if<!type_traits::is_specialization<std::result_of<F>, _stdex::optional>, typename std::result_of<F>::type>::type
-			try_read(F func, octet_reader& reader)
-		{
-			std::size_t initPos = reader.get_pos();
-			_stdex::optional<std::result_of<F>> optRes;
-			try {
-				optRes = func(reader);
-			}
-			catch (std::exception& e) {
-				reader.set_pos(initPos);
-			}
-			return optRes;
-		};
-		*/
 
 
 
