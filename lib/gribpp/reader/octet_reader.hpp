@@ -1,7 +1,6 @@
 #ifndef _GRIBPP_READER_OCTET_READER_HPP_
 #define _GRIBPP_READER_OCTET_READER_HPP_
 
-#define _HAS_CXX17 1
 
 #include <cstddef>
 #include <cstdint>
@@ -21,12 +20,8 @@ namespace gribpp {
 
 		class octet_reader {
 		public:
-
-			octet_reader(std::FILE* file) :
-				mFile(file),
-				mOctetsToRead(1),
-				mReadHelper()
-			{};
+			friend octet_reader open_grib(const char *);
+			friend octet_reader open_grib(std::string &);
 
 			octet_reader(const octet_reader& other) :
 				mFile(other.mFile),
@@ -39,6 +34,10 @@ namespace gribpp {
 				mOctetsToRead(std::move(other.mOctetsToRead)),
 				mReadHelper(std::move(other.mReadHelper))
 			{};
+
+			~octet_reader() {
+				std::fclose(mFile);
+			};
 
 			octet_reader& operator=(const octet_reader& other) {
 				mFile = other.mFile;
@@ -80,6 +79,13 @@ namespace gribpp {
 			};
 
 		protected:
+			octet_reader(std::FILE* file) :
+				mFile(file),
+				mOctetsToRead(1),
+				mReadHelper()
+			{};
+
+
 			inline std::size_t use_octets_to_read() {
 				std::size_t temp = mOctetsToRead;
 				mOctetsToRead = 1;
@@ -116,10 +122,10 @@ namespace gribpp {
 		};
 
 		template<typename F>
-		auto try_read(F func, octet_reader& reader) -> _stdex::optional<decltype(func(reader))>
+		auto try_read(F func, octet_reader& reader) -> _stdex::optional<typename decltype(func(reader))::value_type>
 		{
 			std::size_t initPos = reader.get_pos();
-			_stdex::optional<decltype(func(reader))> optRes = func(reader);
+			_stdex::optional<typename decltype(func(reader))::value_type> optRes = func(reader);
 			if (!optRes)
 				reader.set_pos(initPos);
 			return optRes;
