@@ -1,13 +1,12 @@
 #ifndef _GRIBPP_OCTET_MAPPING_SECTION_HPP_
 #define _GRIBPP_OCTET_MAPPING_SECTION_HPP_
 
-#define _HAS_CXX17 1
-
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory> 
 #include <unordered_map>
+#include <tuple>
 #include <initializer_list>
 #include <experimental/optional>
 #include <limits>
@@ -53,11 +52,6 @@ namespace gribpp {
 				return (*this);
 			};
 
-			inline section_map& operator= (section_map&& other) {
-				mMapping = std::move(other.mMapping);
-				return *this;
-			}
-
 			inline section_map& operator= (std::initializer_list<typename map_type::value_type> initList) {
 				mMapping = initList;
 				return *this;
@@ -76,6 +70,10 @@ namespace gribpp {
 				return mMapping.at(keyVal);
 			};
 
+			inline map_type& mapping() {
+				return mMapping;
+			};
+
 			inline const map_type& mapping() const {
 				return mMapping;
 			};
@@ -85,9 +83,9 @@ namespace gribpp {
 			};
 
 			void shift_mapping(const std::size_t pos) {
-				for (auto val : mapping()) {
-					val.second.first += pos;
-					val.second.second += pos;
+				for (auto it = mapping().begin(); it != mapping().end(); ++it) {
+					it->second.first += pos;
+					it->second.second += pos;
 				}
 			};
 
@@ -149,11 +147,6 @@ namespace gribpp {
 				return *this;
 			}
 
-			inline section_map_vn<V, N> &operator= (section_map_vn<V, N> &&other) {
-				section_map::operator =(other);
-				return *this;
-			}
-
 			inline section_map_vn<V, N>& operator=(std::initializer_list<typename map_type::value_type> initList) {
 				section_map::operator =(initList);
 				return *this;
@@ -170,16 +163,25 @@ namespace gribpp {
 
 		};
 
+		using std::uint8_t;
+		using std::uint16_t;
+		using std::uint32_t;
 
+		using std::size_t;
+
+
+		auto section_definition(reader::octet_reader& reader) -> std::tuple<uint32_t, uint8_t> {
+			return std::make_tuple(reader.read<uint32_t>(), reader.read<uint8_t>());
+		}
 
 
 		template<grib_edition V, unsigned N>
-		auto make_section_map(reader::octet_reader &r) -> _stdex::optional<section_map_vn<V, N>> {
-			return {};
-		};
+		auto make_section_map(reader::octet_reader &r) -> _stdex::optional<section_map_vn<V, N>>;
+
 
 		template<>
-		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 0>> {
+		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 0>>
+		{
 			//-- Section<0> constants definition --
 			constexpr std::size_t GRIB_MESSAGE_SIZE = 4;
 			constexpr const char* GRIB_MESSAGE = "GRIB";
@@ -211,19 +213,14 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 1>> {
-			constexpr std::size_t CONTENT_MAX_SIZE = 4;
+		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 1>>
+		{
+			std::size_t pos = reader.get_pos();
 
-			std::size_t sectonPos = reader.get_pos();
-			std::unique_ptr<char[]> octets = std::make_unique<char[]>(CONTENT_MAX_SIZE);
+			uint32_t sectionSize;
+			uint8_t sectionNumber;
+			std::tie(sectionSize, sectionNumber) = reader.read_all<uint32_t, uint8_t>();
 
-			//-- Length of section (4) --
-			reader(4) >> octets;
-			std::size_t sectionSize = octets[0] | octets[1] << 8 | octets[2] << 16 | octets[3] << 24;
-
-			//-- Section number (1) --
-			char sectionNumber;
-			reader >> sectionNumber;
 			if (sectionNumber != 1) {
 				//-- not 1st section --
 				return {};
@@ -245,17 +242,120 @@ namespace gribpp {
 				{ fields::SECOND,{ 18, 18 } },
 				{ fields::PRODUCTION_STATUS_OF_DATA,{ 19, 19 } },
 				{ fields::TYPE_OF_DATA,{ 20, 20 } },
-				{ fields::RESERVED02,{ 21, sectionSize - 21 } }
 			};
-			sectionMap.shift_mapping(sectonPos);
+
+			constexpr uint32_t OPTIONAL_OCTETS_BEGINNING = 21;
+			if (sectionSize - 1 > OPTIONAL_OCTETS_BEGINNING)
+				sectionMap[fields::RESERVED02] = { OPTIONAL_OCTETS_BEGINNING, sectionSize - 1 };
+
+			sectionMap.shift_mapping(pos);
 
 			reader.set_pos(*sectionMap.last_octet() + 1);
 
 			return sectionMap;
 		};
 
+		template<>
+		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 2>>
+		{
+			std::size_t pos = reader.get_pos();
+
+			uint32_t sectionSize;
+			uint8_t sectionNumber;
+			std::tie(sectionSize, sectionNumber) = reader.read_all<uint32_t, uint8_t>();
+
+			if (sectionNumber != 2) {
+				return {};
+			}
+
+			section_map_vn<grib_edition::V2, 2> sectionMap {
+				{fields::SECTION_LENGTH, {0, 3} },
+				{fields::SECTION_NUMBER, {4, 4} },
+				{fields::LOCAL_USE, {5, sectionSize - 1} }
+			};
+
+			sectionMap.shift_mapping(pos);
+			reader.set_pos(*sectionMap.last_octet() + 1);
+
+			return sectionMap;
+		};
+
+		template<>
+		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 3>>
+		{
+			std::size_t pos = reader.get_pos();
+
+			uint32_t sectionSize;
+			uint8_t sectionNumber;
+			std::tie(sectionSize, sectionNumber) = reader.read_all<uint32_t, uint8_t>();
+
+
+			if (sectionNumber != 3) {
+				//-- not 1st section --
+				return {};
+			}
+			//-- Source of GRIB definition (1) --
+			uint8_t sourceOfGribDefinition, optionalListLength, optionalListInterpretation;
+			uint16_t templateNumber;
+			std::tie(
+					sourceOfGribDefinition,
+					std::ignore,
+					optionalListLength,
+					optionalListInterpretation,
+					templateNumber) = reader.read_all<uint8_t, uint32_t, uint8_t, uint8_t, uint16_t>();
+
+			section_map_vn<grib_edition::V2, 3> sectionMap {
+				{fields::SECTION_LENGTH, {0, 3} },
+				{fields::SECTION_NUMBER, {4, 4} },
+				{fields::SOURCE_OF_GRID_DEFINITION, {5, 5} },
+				{fields::NUMBER_OF_DATA_POINTS, {6, 9} },
+				{fields::LENGTH_FOR_OPTIONAL_LIST_OF_NUMBER_OF_POINTS, {10, 10} },
+				{fields::INTERPRETATION_FOR_LIST_OF_NUMBER_OF_POINTS, {11, 11} },
+				{fields::GRID_DEFINITION_TEMPLATE_NUMBER, {12, 13} },
+
+			};
+
+			std::size_t xx;
+			if (sourceOfGribDefinition && templateNumber == 0xFF) {
+				//-- if octet 6 is not zero and template number is set to 0xFF, then GRIB definition template may not be supplied --
+
+			}
+			else {
+
+			}
+
+
+
+
+
+
+			sectionMap.shift_mapping(pos);
+			reader.set_pos(*sectionMap.last_octet() + 1);
+
+			return sectionMap;
+		};
+
+
+
+
 
 	};	//-- namespace octet_mapping --
 };	//-- namespace gribpp --
 
 #endif	//-- _GRIBPP_OCTATE_MAPPING_SECTION_HPP_ --
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

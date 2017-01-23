@@ -46,13 +46,20 @@ namespace gribpp {
 			};
 
 			template<typename T>
-			octet_reader& operator() (const T& readHelper) {
+			typename std::enable_if<!std::is_integral<T>::value, octet_reader&>::type operator() (const T& readHelper) {
 				mReadHelper = readHelper;
 				return *this;
 			};
 
-			octet_reader& operator >> (char& octet) {
-				fread(&octet, 1, 1, file());
+			template<typename T>
+			typename std::enable_if<std::is_integral<T>::value, octet_reader&>::type operator() (const T octetsToRead) {
+				mOctetsToRead = octetsToRead;
+				return *this;
+			};
+
+			template<typename T>
+			typename std::enable_if<std::is_integral<T>::value, octet_reader&>::type operator >> (T& octets) {
+				fread(&octets, 1, sizeof(T), file());
 				return *this;
 			};
 
@@ -60,7 +67,20 @@ namespace gribpp {
 				fread(octets.get(), 1, use_octets_to_read(), file());
 				return *this;
 			};
-			
+
+			template<typename T>
+			typename std::enable_if<std::is_integral<T>::value, T>::type read() {
+				T val;
+				fread(&val, 1, sizeof(T), file());
+				return val;
+			};
+
+			template<typename... Args>
+			std::tuple<Args...> read_all() {
+				return std::make_tuple(read<Args>()...);
+			};
+
+
 
 			std::FILE* file() const {
 				return mFile;
@@ -106,14 +126,8 @@ namespace gribpp {
 		};	//-- class octet_reader --
 
 
-		template<>
-		octet_reader& octet_reader::operator() (const std::size_t& octetsToRead) {
-			mOctetsToRead = octetsToRead;
-			return *this;
-		};
-
 		inline octet_reader open_grib(const char* fileName) {
-			std::FILE* file = std::fopen(fileName, "rb");
+			std::FILE* file = std::fopen(fileName, "r");
 			return octet_reader(file);
 		};
 
