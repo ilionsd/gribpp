@@ -12,8 +12,9 @@
 #include <limits>
 
 
-#include "../../utility/enum_hash.hpp"
-#include "octet_fields.hpp"
+#include "octet_map.hpp"
+#include "grib_edition.hpp"
+#include "map_inheritance_helper.hpp"
 #include "../reader/octet_reader.hpp"
 
 
@@ -21,147 +22,7 @@
 namespace gribpp {
 	namespace octet_mapping {
 
-		using map_type = std::unordered_map<fields, std::pair<std::size_t, std::size_t>, utility::enum_hash<fields>>;
-
-		enum class grib_edition : std::uint8_t {
-			V1 = 1,
-			V2 = 2
-		};
-
 		namespace _stdex = std::experimental;
-
-		class section_map {
-		public:
-			section_map() :
-				mMapping()
-			{};
-
-			section_map(const section_map& other) :
-				mMapping(other.mMapping)
-			{};
-
-			section_map(section_map &&other) :
-				mMapping(std::move(other.mMapping))
-			{};
-			section_map(std::initializer_list<typename map_type::value_type> initList) :
-				mMapping(initList)
-			{};
-
-			inline section_map& operator= (const section_map& other) {
-				mMapping = other.mMapping;
-				return (*this);
-			};
-
-			inline section_map& operator= (std::initializer_list<typename map_type::value_type> initList) {
-				mMapping = initList;
-				return *this;
-			};
-
-			inline map_type::mapped_type& operator[] (map_type::key_type&& keyVal) {
-				return mMapping[keyVal];
-			};
-			inline map_type::mapped_type& operator[] (const map_type::key_type& keyVal) {
-				return mMapping[keyVal];
-			};
-			inline map_type::mapped_type& at(const map_type::key_type& keyVal) {
-				return mMapping.at(keyVal);
-			};
-			inline const map_type::mapped_type& at(const map_type::key_type& keyVal) const {
-				return mMapping.at(keyVal);
-			};
-
-			inline map_type& mapping() {
-				return mMapping;
-			};
-
-			inline const map_type& mapping() const {
-				return mMapping;
-			};
-
-			inline bool empty() const {
-				return mMapping.empty();
-			};
-
-			void shift_mapping(const std::size_t pos) {
-				for (auto it = mapping().begin(); it != mapping().end(); ++it) {
-					it->second.first += pos;
-					it->second.second += pos;
-				}
-			};
-
-			_stdex::optional<std::size_t> first_octet() const {
-				if (empty())
-					return {};
-				else {
-					std::size_t firstOctet = std::numeric_limits<std::size_t>::max();
-					for (auto it = mapping().cbegin(); it != mapping().cend(); ++it) {
-						if (firstOctet > it->second.first)
-							firstOctet = it->second.first;
-					}
-					return firstOctet;
-				}
-			};
-
-			_stdex::optional<std::size_t> last_octet() const {
-				if (empty())
-					return {};
-				else {
-					std::size_t lastOctet = std::numeric_limits<std::size_t>::min();
-					for (auto it = mapping().cbegin(); it != mapping().cend(); ++it) {
-						if (lastOctet < it->second.second)
-							lastOctet = it->second.second;
-					}
-					return lastOctet;
-				}
-			};
-
-		protected:
-			map_type mMapping;
-
-		};
-
-
-
-		template<grib_edition V, unsigned N>
-		struct section_map_vn :
-			public section_map
-		{
-			section_map_vn() :
-				section_map()
-			{};
-
-			section_map_vn(const section_map_vn<V, N> &other) :
-				section_map(other)
-			{};
-
-			section_map_vn(section_map_vn<V, N> &&other) :
-				section_map(other)
-			{};
-
-			section_map_vn(std::initializer_list<typename map_type::value_type> initList) :
-				section_map(initList)
-			{};
-
-			inline section_map_vn<V, N>& operator= (const section_map_vn<V, N> &other) {
-				section_map::operator =(other);
-				return *this;
-			}
-
-			inline section_map_vn<V, N>& operator=(std::initializer_list<typename map_type::value_type> initList) {
-				section_map::operator =(initList);
-				return *this;
-			}
-
-
-			inline unsigned number() const {
-				return N;
-			};
-
-			inline grib_edition version() const {
-				return V;
-			};
-
-		};
 
 		using std::uint8_t;
 		using std::uint16_t;
@@ -169,18 +30,95 @@ namespace gribpp {
 
 		using std::size_t;
 
+		enum class section_octets : uint32_t {
+			//-- Section 0 (Indicator Section) --
+			GRIB_MESSAGE,
+			RESERVED01,
+			MASTER_TABLE_NUMBER,
+			EDITION_NUMBER,
+			TOTAL_LENGTH,
 
-		auto section_definition(reader::octet_reader& reader) -> std::tuple<uint32_t, uint8_t> {
-			return std::make_tuple(reader.read<uint32_t>(), reader.read<uint8_t>());
-		}
+			//-- Section 1 - 6 --
+			SECTION_LENGTH,
+			SECTION_NUMBER,
+
+			//-- Section 1 (Identification Section) --
+			ORIGINATING_CENTER_ID,
+			ORIGINATING_SUBCENTER_ID,
+			MASTER_TABLES_VERSION_NUMBER,
+			LOCAL_TABLES_VERSION_NUMBER,
+			SIGNIFICANCE_OF_REFERENCE_TIME,
+			YEAR,
+			MONTH,
+			DAY,
+			HOUR,
+			MINUTE,
+			SECOND,
+			PRODUCTION_STATUS_OF_DATA,
+			TYPE_OF_DATA,
+			RESERVED02,
+
+			//-- Section 2 (Local Use Section) --
+			LOCAL_USE,
+
+			//-- Section 3 (Grid Definition Section) --
+			SOURCE_OF_GRID_DEFINITION,
+			NUMBER_OF_DATA_POINTS,
+			LENGTH_FOR_OPTIONAL_LIST_OF_NUMBER_OF_POINTS,
+			INTERPRETATION_FOR_LIST_OF_NUMBER_OF_POINTS,
+			GRID_DEFINITION_TEMPLATE_NUMBER,
+			GRID_DEFINITION_TEMPLATE,
+			OPTIONAL_LIST_OF_NUMBERS_DEFINING_NUMBER_OF_POINTS,
+
+			//-- Section 4 (Product Definition Section) --
+			NUMBER_OF_COORDINATES_VALUES,
+			PRODUCT_DEFINITION_TEMPLATE_NUMBER,
+			PRODUCT_DEFINITION_TEMPLATE,
+			OPTIONAL_LIST_OF_COORDINATES_VALUES,
+
+			//-- Section 5 (Data Representation Section) --
+			NUMBER_OF_DATA_POINTS_WITH_BIT_MAP_PRESENT,
+			DATA_REPRESENTATION_TEMPLATE_NUMBER,
+			DATA_REPRESENTATION_TEMPLATE,
+
+			//-- Section 6 (Bit-Map Section) --
+			BIT_MAP_INDICATOR,
+			BIT_MAP,
+
+			//-- Section 7 (Data Section) --
+			DATA,
+
+			//-- Section 8 (End Section) --
+			END_MESSAGE
+		};
+
+		template<grib_edition V, unsigned N>
+		struct section_map :
+			public map_inheritance_helper<octet_map<section_octets>, section_map<V, N>>
+		{
+			static constexpr grib_edition grib_version = V;
+			static constexpr unsigned section_number = N;
+
+			using inheritance_helper = map_inheritance_helper<octet_map<section_octets>, section_map<grib_version, section_number>>;
+			using inheritance_helper::inheritance_helper;
+
+			inline unsigned number() const {
+				return section_number;
+			};
+
+			inline grib_edition version() const {
+				return grib_version;
+			};
+
+		};
 
 
 		template<grib_edition V, unsigned N>
-		auto make_section_map(reader::octet_reader &r) -> _stdex::optional<section_map_vn<V, N>>;
+		auto make_section_map(reader::octet_reader &r) -> _stdex::optional<section_map<V, N>>;
 
 
 		template<>
-		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 0>>
+		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map<grib_edition::V2, 0>>
 		{
 			//-- Section<0> constants definition --
 			constexpr std::size_t GRIB_MESSAGE_SIZE = 4;
@@ -197,12 +135,12 @@ namespace gribpp {
 				return {};
 			}
 
-			section_map_vn<grib_edition::V2, 0> sectionMap {
-				{ fields::GRIB_MESSAGE,{ 0, 3 } },
-				{ fields::RESERVED01,{ 4, 5 } },
-				{ fields::MASTER_TABLE_NUMBER,{ 6, 6 } },
-				{ fields::EDITION_NUMBER,{ 7, 7 } },
-				{ fields::TOTAL_LENGTH,{ 8, 15 } }
+			section_map<grib_edition::V2, 0> sectionMap {
+				{ section_octets::GRIB_MESSAGE,{ 0, 3 } },
+				{ section_octets::RESERVED01,{ 4, 5 } },
+				{ section_octets::MASTER_TABLE_NUMBER,{ 6, 6 } },
+				{ section_octets::EDITION_NUMBER,{ 7, 7 } },
+				{ section_octets::TOTAL_LENGTH,{ 8, 15 } }
 			};
 
 			sectionMap.shift_mapping(pos);
@@ -213,7 +151,7 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 1>>
+		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map<grib_edition::V2, 1>>
 		{
 			std::size_t pos = reader.get_pos();
 
@@ -226,27 +164,27 @@ namespace gribpp {
 				return {};
 			}
 
-			section_map_vn<grib_edition::V2, 1> sectionMap {
-				{ fields::SECTION_LENGTH,{ 0, 3 } },
-				{ fields::SECTION_NUMBER,{ 4, 4 } },
-				{ fields::ORIGINATING_CENTER_ID,{ 5, 6 } },
-				{ fields::ORIGINATING_SUBCENTER_ID,{ 7, 8 } },
-				{ fields::MASTER_TABLES_VERSION_NUMBER,{ 9, 9 } },
-				{ fields::LOCAL_TABLES_VERSION_NUMBER,{ 10, 10 } },
-				{ fields::SIGNIFICANCE_OF_REFERENCE_TIME,{ 11, 11 } },
-				{ fields::YEAR,{ 12, 13 } },
-				{ fields::MONTH,{ 14, 14 } },
-				{ fields::DAY,{ 15, 15 } },
-				{ fields::HOUR,{ 16, 16 } },
-				{ fields::MINUTE,{ 17, 17 } },
-				{ fields::SECOND,{ 18, 18 } },
-				{ fields::PRODUCTION_STATUS_OF_DATA,{ 19, 19 } },
-				{ fields::TYPE_OF_DATA,{ 20, 20 } },
+			section_map<grib_edition::V2, 1> sectionMap {
+				{ section_octets::SECTION_LENGTH,{ 0, 3 } },
+				{ section_octets::SECTION_NUMBER,{ 4, 4 } },
+				{ section_octets::ORIGINATING_CENTER_ID,{ 5, 6 } },
+				{ section_octets::ORIGINATING_SUBCENTER_ID,{ 7, 8 } },
+				{ section_octets::MASTER_TABLES_VERSION_NUMBER,{ 9, 9 } },
+				{ section_octets::LOCAL_TABLES_VERSION_NUMBER,{ 10, 10 } },
+				{ section_octets::SIGNIFICANCE_OF_REFERENCE_TIME,{ 11, 11 } },
+				{ section_octets::YEAR,{ 12, 13 } },
+				{ section_octets::MONTH,{ 14, 14 } },
+				{ section_octets::DAY,{ 15, 15 } },
+				{ section_octets::HOUR,{ 16, 16 } },
+				{ section_octets::MINUTE,{ 17, 17 } },
+				{ section_octets::SECOND,{ 18, 18 } },
+				{ section_octets::PRODUCTION_STATUS_OF_DATA,{ 19, 19 } },
+				{ section_octets::TYPE_OF_DATA,{ 20, 20 } },
 			};
 
 			constexpr uint32_t OPTIONAL_OCTETS_BEGINNING = 21;
 			if (sectionSize - 1 > OPTIONAL_OCTETS_BEGINNING)
-				sectionMap[fields::RESERVED02] = { OPTIONAL_OCTETS_BEGINNING, sectionSize - 1 };
+				sectionMap[section_octets::RESERVED02] = { OPTIONAL_OCTETS_BEGINNING, sectionSize - 1 };
 
 			sectionMap.shift_mapping(pos);
 
@@ -256,7 +194,7 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 2>>
+		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map<grib_edition::V2, 2>>
 		{
 			std::size_t pos = reader.get_pos();
 
@@ -268,10 +206,10 @@ namespace gribpp {
 				return {};
 			}
 
-			section_map_vn<grib_edition::V2, 2> sectionMap {
-				{fields::SECTION_LENGTH, {0, 3} },
-				{fields::SECTION_NUMBER, {4, 4} },
-				{fields::LOCAL_USE, {5, sectionSize - 1} }
+			section_map<grib_edition::V2, 2> sectionMap {
+				{section_octets::SECTION_LENGTH, {0, 3} },
+				{section_octets::SECTION_NUMBER, {4, 4} },
+				{section_octets::LOCAL_USE, {5, sectionSize - 1} }
 			};
 
 			sectionMap.shift_mapping(pos);
@@ -281,7 +219,7 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map_vn<grib_edition::V2, 3>>
+		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map<grib_edition::V2, 3>>
 		{
 			std::size_t pos = reader.get_pos();
 
@@ -304,18 +242,18 @@ namespace gribpp {
 					optionalListInterpretation,
 					templateNumber) = reader.read_all<uint8_t, uint32_t, uint8_t, uint8_t, uint16_t>();
 
-			section_map_vn<grib_edition::V2, 3> sectionMap {
-				{fields::SECTION_LENGTH, {0, 3} },
-				{fields::SECTION_NUMBER, {4, 4} },
-				{fields::SOURCE_OF_GRID_DEFINITION, {5, 5} },
-				{fields::NUMBER_OF_DATA_POINTS, {6, 9} },
-				{fields::LENGTH_FOR_OPTIONAL_LIST_OF_NUMBER_OF_POINTS, {10, 10} },
-				{fields::INTERPRETATION_FOR_LIST_OF_NUMBER_OF_POINTS, {11, 11} },
-				{fields::GRID_DEFINITION_TEMPLATE_NUMBER, {12, 13} },
+			section_map<grib_edition::V2, 3> sectionMap {
+				{section_octets::SECTION_LENGTH, {0, 3} },
+				{section_octets::SECTION_NUMBER, {4, 4} },
+				{section_octets::SOURCE_OF_GRID_DEFINITION, {5, 5} },
+				{section_octets::NUMBER_OF_DATA_POINTS, {6, 9} },
+				{section_octets::LENGTH_FOR_OPTIONAL_LIST_OF_NUMBER_OF_POINTS, {10, 10} },
+				{section_octets::INTERPRETATION_FOR_LIST_OF_NUMBER_OF_POINTS, {11, 11} },
+				{section_octets::GRID_DEFINITION_TEMPLATE_NUMBER, {12, 13} },
 
 			};
 
-			std::size_t xx;
+			size_t xx;
 			if (sourceOfGribDefinition && templateNumber == 0xFF) {
 				//-- if octet 6 is not zero and template number is set to 0xFF, then GRIB definition template may not be supplied --
 

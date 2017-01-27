@@ -16,17 +16,17 @@ int main() {
 	auto reader = reading::open_grib(dataFileName);
 
 	auto optRes0 = reading::try_read(mapping::make_section_map<mapping::grib_edition::V2, 0>, reader);
-	mapping::section_map_vn<mapping::grib_edition::V2, 0> sectionMap0;
+	mapping::section_map<mapping::grib_edition::V2, 0> sectionMap0;
 	if (optRes0)
 		sectionMap0 = std::move(*optRes0);
 
 	auto optRes1 = reading::try_read(mapping::make_section_map<mapping::grib_edition::V2, 1>, reader);
-	mapping::section_map_vn<mapping::grib_edition::V2, 1> sectionMap1;
+	mapping::section_map<mapping::grib_edition::V2, 1> sectionMap1;
 	if (optRes1)
 		sectionMap1 = std::move(*optRes1);
 
 	auto optRes2 = reading::try_read(mapping::make_section_map<mapping::grib_edition::V2, 2>, reader);
-	mapping::section_map_vn<mapping::grib_edition::V2, 2> sectionMap2;
+	mapping::section_map<mapping::grib_edition::V2, 2> sectionMap2;
 	if (optRes2)
 		sectionMap2 = std::move(*optRes2);
 
