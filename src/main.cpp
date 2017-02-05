@@ -30,6 +30,13 @@ int main() {
 	if (optRes2)
 		sectionMap2 = std::move(*optRes2);
 
+	auto optRes3 = reading::try_read(mapping::make_section_map<mapping::grib_edition::V2, 3>, reader);
+	mapping::section_map<mapping::grib_edition::V2, 3> sectionMap3;
+	if (optRes3)
+		sectionMap3 = std::move(*optRes3);
+
 	//system("PAUSE");
 	return 0;
 }
+
+

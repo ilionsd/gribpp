@@ -1,6 +1,10 @@
 #ifndef _GRIBPP_READER_OCTET_READER_HPP_
 #define _GRIBPP_READER_OCTET_READER_HPP_
 
+#ifndef NDEBUG
+#define _INCLUDE_READER_POS
+#endif
+
 
 #include <cstddef>
 #include <cstdint>
@@ -27,12 +31,18 @@ namespace gribpp {
 				mFile(other.mFile),
 				mOctetsToRead(other.mOctetsToRead),
 				mReadHelper(other.mReadHelper)
+#ifdef _INCLUDE_READER_POS
+				,__mPos__(other.__mPos__)
+#endif
 			{};
 
 			octet_reader(octet_reader &&other) :
 				mFile(std::move(other.mFile)),
 				mOctetsToRead(std::move(other.mOctetsToRead)),
 				mReadHelper(std::move(other.mReadHelper))
+#ifdef _INCLUDE_READER_POS
+				,__mPos__(other.__mPos__)
+#endif
 			{};
 
 			~octet_reader() {
@@ -42,6 +52,9 @@ namespace gribpp {
 			octet_reader& operator=(const octet_reader& other) {
 				mFile = other.mFile;
 				mOctetsToRead = other.mOctetsToRead;
+#ifdef _INCLUDE_READER_POS
+				__mPos__ = other.__mPos__;
+#endif
 				return *this;
 			};
 
@@ -60,11 +73,17 @@ namespace gribpp {
 			template<typename T>
 			typename std::enable_if<std::is_integral<T>::value, octet_reader&>::type operator >> (T& octets) {
 				fread(&octets, 1, sizeof(T), file());
+#ifdef _INCLUDE_READER_POS
+				__mPos__ = get_pos();
+#endif
 				return *this;
 			};
 
 			octet_reader& operator >> (std::unique_ptr<char[]> &octets) {
 				fread(octets.get(), 1, use_octets_to_read(), file());
+#ifdef _INCLUDE_READER_POS
+				__mPos__ = get_pos();
+#endif
 				return *this;
 			};
 
@@ -72,12 +91,15 @@ namespace gribpp {
 			typename std::enable_if<std::is_integral<T>::value, T>::type read() {
 				T val;
 				fread(&val, 1, sizeof(T), file());
+#ifdef _INCLUDE_READER_POS
+				__mPos__ = get_pos();
+#endif
 				return val;
 			};
 
 			template<typename... Args>
 			std::tuple<Args...> read_all() {
-				return std::make_tuple(read<Args>()...);
+				return std::tuple<Args...>{read<Args>()...};
 			};
 
 
@@ -92,6 +114,9 @@ namespace gribpp {
 			};
 			void set_pos(const std::size_t pos) {
 				std::fseek(file(), pos, SEEK_SET);
+#ifdef _INCLUDE_READER_POS
+				__mPos__ = get_pos();
+#endif
 			};
 
 			_stdex::any& read_helper() {
@@ -103,6 +128,9 @@ namespace gribpp {
 				mFile(file),
 				mOctetsToRead(1),
 				mReadHelper()
+#ifdef _INCLUDE_READER_POS
+				,__mPos__(0)
+#endif
 			{};
 
 
@@ -122,6 +150,9 @@ namespace gribpp {
 			std::size_t mOctetsToRead;
 			_stdex::any mReadHelper;
 
+#ifdef _INCLUDE_READER_POS
+			std::size_t __mPos__;
+#endif
 
 		};	//-- class octet_reader --
 

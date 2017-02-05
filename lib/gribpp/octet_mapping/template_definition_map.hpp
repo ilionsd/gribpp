@@ -90,6 +90,13 @@ namespace gribpp {
 			};
 		};
 
+
+		template<grib_edition V, template_definitions TD>
+		auto make_template_definition_map(reader::octet_reader& r) -> _stdex::optional<template_definition_map<V, TD>>;
+
+
+
+
 	};
 };
 
