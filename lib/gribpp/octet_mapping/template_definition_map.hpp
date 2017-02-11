@@ -31,7 +31,7 @@ namespace gribpp {
 		using std::size_t;
 
 
-		enum class template_definitions : uint16_t {
+		enum class definition_template_number : uint16_t {
 			//-- 0x --
 			LATITUDE_LONGITUDE = 0,
 			ROTATED_LATITUDE_LONGITUDE = 1,
@@ -72,14 +72,76 @@ namespace gribpp {
 		};
 
 
-		template<grib_edition V, template_definitions TD>
+		enum class definition_template : uint32_t {
+			//-- 20 --
+			SHAPE_OF_THE_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 0,
+
+			SCALE_FACTOR_OF_RADIUS_OF_SHPERICAL_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 1,
+
+			SCALED_VALUE_OF_RADIUS_OF_SHPERICAL_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 2,
+
+			SCALE_FACTOR_OF_MAJOR_AXIS_OF_OBLATE_SHPEROID_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 3,
+
+			SCALED_VALUE_OF_MAJOR_AXIS_OF_OBLATE_SHPEROID_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 4,
+
+			SCALE_FACTOR_OF_MINOR_AXIS_OF_OBLATE_SHPEROID_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 5,
+
+			SCALED_VALUE_OF_MINOR_AXIS_OF_OBLATE_SHPEROID_EARTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 6,
+
+			NUMBER_OF_POINTS_ALONG_X_AXIS
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 7,
+
+			NUMBER_OF_POINTS_ALONG_Y_AXIS
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 8,
+
+			LATITUDE_OF_FIRST_GRID_POINT
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 9,
+
+			LONGITUDE_OF_FIRST_GRID_POINT
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 10,
+
+			RESOLUTION_AND_COMPONENT_FLAG
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 11,
+
+			LATITUDE_WHERE_Dx_AND_Dy_ARE_SPECIFIED
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 12,
+
+			ORIENTATION_OF_THE_GRID
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 13,
+
+			X_DIRECTION_GRID_LENGTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 14,
+
+			Y_DIRECTION_GRID_LENGTH
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 15,
+
+			PROJECTION_CENTER_FLAG
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 16,
+
+			SCANNING_MODE
+				= ((uint32_t)definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION << 16) + 17
+
+
+		};
+
+
+
+
+		template<grib_edition V>
 		struct template_definition_map :
-			public map_inheritance_helper<octet_map<template_definitions>, template_definition_map<V, TD>>
+			public map_inheritance_helper<octet_map<definition_template>, template_definition_map<V>>
 		{
 			static constexpr grib_edition grib_version = V;
 			static constexpr template_definitions template_definition = TD;
 
-			using inheritance_helper = map_inheritance_helper<octet_map<template_definitions>, template_definition_map<grib_version, template_definition>>;
+			using inheritance_helper = map_inheritance_helper<octet_map<template_definitions>, template_definition_map<grib_version>>;
 			using inheritance_helper::inheritance_helper;
 
 			inline template_definitions definition() const {
@@ -91,10 +153,22 @@ namespace gribpp {
 		};
 
 
-		template<grib_edition V, template_definitions TD>
-		auto make_template_definition_map(reader::octet_reader& r) -> _stdex::optional<template_definition_map<V, TD>>;
+		template<grib_edition V>
+		auto make_template_definition_map(reader::octet_reader& r)
+			-> _stdex::optional<template_definition_map<V>>;
 
+		template<>
+		auto make_template_definition_map(reader::octet_reader& r)
+			-> _stdex::optional<template_definition_map<grib_edition::V2>>
+		{
+			size_t pos = r.get_pos();
 
+			template_definition_map<grib_edition::V2> tdMap = {
+
+			};
+
+			return tdMap;
+		};
 
 
 	};

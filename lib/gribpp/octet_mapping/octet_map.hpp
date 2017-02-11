@@ -44,10 +44,6 @@ namespace gribpp {
 				return mMapping.at(keyVal);
 			};
 
-			inline map_type& mapping() {
-				return mMapping;
-			};
-
 			inline const map_type& mapping() const {
 				return mMapping;
 			};
@@ -113,6 +109,10 @@ namespace gribpp {
 			};
 
 		private:
+			inline map_type& mapping() {
+				return mMapping;
+			};
+
 			map_type mMapping;
 
 		};

@@ -15,6 +15,7 @@
 #include <type_traits>
 
 #include "../type_traits.hpp"
+#include "../../utility/byte_reverse.hpp"
 
 
 namespace gribpp {
@@ -88,21 +89,19 @@ namespace gribpp {
 			};
 
 			template<typename T>
-			typename std::enable_if<std::is_integral<T>::value, T>::type read() {
+			typename std::enable_if<std::is_unsigned<T>::value, T>::type read() {
 				T val;
 				fread(&val, 1, sizeof(T), file());
 #ifdef _INCLUDE_READER_POS
 				__mPos__ = get_pos();
 #endif
-				return val;
+				return utility::byte_reverse(val);
 			};
 
-			template<typename... Args>
-			std::tuple<Args...> read_all() {
-				return std::tuple<Args...>{read<Args>()...};
+			template<typename... Ts>
+			std::tuple<Ts...> read_all() {
+				return std::tuple<Ts...>{read<Ts>()...};
 			};
-
-
 
 			std::FILE* file() const {
 				return mFile;
