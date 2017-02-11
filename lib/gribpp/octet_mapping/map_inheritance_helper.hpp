@@ -31,6 +31,9 @@ namespace gribpp {
 			inline map_inheritance_helper(const derived_type& other) :
 				base_type(other)
 			{};
+			inline map_inheritance_helper(derived_type&& other) :
+				base_type(other)
+			{};
 			inline map_inheritance_helper(std::initializer_list<value_type> initList) :
 				base_type(initList)
 			{};

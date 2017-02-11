@@ -94,13 +94,13 @@ namespace gribpp {
 
 		template<grib_edition V, unsigned N>
 		struct section_map :
-			public map_inheritance_helper<octet_map<section_octets>, section_map<V, N>>
+			public octet_map<section_octets, section_map<V, N>>
 		{
 			static constexpr grib_edition grib_version = V;
 			static constexpr unsigned section_number = N;
 
-			using inheritance_helper = map_inheritance_helper<octet_map<section_octets>, section_map<grib_version, section_number>>;
-			using inheritance_helper::inheritance_helper;
+			using base_type = octet_map<section_octets, section_map<grib_version, section_number>>;
+			using base_type::base_type;
 
 			inline unsigned number() const {
 				return section_number;

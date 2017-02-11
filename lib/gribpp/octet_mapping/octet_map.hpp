@@ -21,15 +21,37 @@ namespace gribpp {
 
 		using std::size_t;
 
-		template<typename E>
+		template<typename E, typename D>
 		class octet_map {
 		public:
 			using enum_type = E;
+			using derived_type = D;
 			using map_type = typename std::unordered_map<enum_type, std::pair<std::size_t, std::size_t>, utility::enum_hash<enum_type>>;
 			using value_type 	= typename map_type::value_type;
 			using key_type 		= typename map_type::key_type;
 			using mapped_type 	= typename map_type::mapped_type;
 
+			inline octet_map() :
+				mMapping()
+			{};
+			inline octet_map(const derived_type& other) :
+				mMapping(other.mMapping)
+			{};
+			inline octet_map(derived_type &&other) :
+				mMapping(std::move(other.mMapping))
+			{};
+			inline octet_map(std::initializer_list<value_type> initList) :
+				mMapping(initList)
+			{};
+
+			inline derived_type& operator= (const derived_type& other) {
+				mMapping = other.mMapping;
+				return static_cast<derived_type&>(*this);
+			};
+			inline derived_type& operator= (std::initializer_list<value_type> initList) {
+				mMapping = initList;
+				return static_cast<derived_type&>(*this);
+			};
 
 			inline mapped_type& operator[] (key_type&& keyVal) {
 				return mMapping[keyVal];
@@ -86,27 +108,7 @@ namespace gribpp {
 			};
 
 		protected:
-			inline octet_map() :
-				mMapping()
-			{};
-			inline octet_map(const octet_map& other) :
-				mMapping(other.mMapping)
-			{};
-			inline octet_map(octet_map &&other) :
-				mMapping(std::move(other.mMapping))
-			{};
-			inline octet_map(std::initializer_list<value_type> initList) :
-				mMapping(initList)
-			{};
 
-			inline octet_map& operator= (const octet_map& other) {
-				mMapping = other.mMapping;
-				return (*this);
-			};
-			inline octet_map& operator= (std::initializer_list<value_type> initList) {
-				mMapping = initList;
-				return *this;
-			};
 
 		private:
 			inline map_type& mapping() {
