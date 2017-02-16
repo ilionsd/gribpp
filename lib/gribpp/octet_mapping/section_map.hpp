@@ -12,11 +12,10 @@
 #include <limits>
 
 
-#include "octet_map.hpp"
-#include "grib_edition.hpp"
-#include "map_inheritance_helper.hpp"
 #include "../reader/octet_reader.hpp"
-
+#include "grib_edition.hpp"
+#include "grid_definition_template_map.hpp"
+#include "octet_map.hpp"
 
 
 namespace gribpp {
@@ -94,13 +93,45 @@ namespace gribpp {
 
 		template<grib_edition V, unsigned N>
 		struct section_map :
-			public octet_map<section_octets, section_map<V, N>>
+			public octet_map<section_octets>
 		{
 			static constexpr grib_edition grib_version = V;
 			static constexpr unsigned section_number = N;
 
-			using base_type = octet_map<section_octets, section_map<grib_version, section_number>>;
-			using base_type::base_type;
+			using base_type 	= octet_map<section_octets>;
+			using map_type 		= typename base_type::map_type;
+			using value_type 	= typename map_type::value_type;
+			using key_type 		= typename map_type::key_type;
+			using mapped_type 	= typename map_type::mapped_type;
+
+			inline section_map() :
+				base_type()
+			{};
+			inline section_map(const map_type& m) :
+				base_type(m)
+			{};
+			inline section_map(const section_map& other) :
+				base_type(other)
+			{};
+			inline section_map(section_map&& other) :
+				base_type(other)
+			{};
+			inline section_map(std::initializer_list<value_type> initList) :
+				base_type(initList)
+			{};
+
+			inline section_map& operator= (const section_map& other) {
+				base_type::operator =(other);
+				return (*this);
+			};
+			inline section_map& operator= (section_map&& other) {
+				base_type::operator =(other);
+				return (*this);
+			};
+			inline section_map& operator= (std::initializer_list<value_type> initList) {
+				base_type::operator =(initList);
+				return (*this);
+			};
 
 			inline unsigned number() const {
 				return section_number;
@@ -255,13 +286,25 @@ namespace gribpp {
 
 			size_t xx;
 			if (sourceOfGribDefinition && templateNumber == 0xFF) {
-				//-- if octet 6 is not zero and template number is set to 0xFF, then GRIB definition template may not be supplied --
+				//-- if octet 6 is not zero and template number is set to 0xFF, then grid definition template may not be supplied --
 
+			}
+			else if (!sourceOfGribDefinition) {
+				auto gridDefinitionTemplateMap = make_grid_definition_template_map<grib_edition::V2>(
+						static_cast<grid_definition_template_number>(templateNumber), reader);
+				xx = *gridDefinitionTemplateMap.last_octet();
 			}
 			else {
-
+				//-- something wrong with bytes values --
+				return {};
 			}
 
+			if (!optionalListLength && !optionalListInterpretation) {
+				//-- optional list of number of points is not present --
+			}
+			else if (optionalListLength && optionalListInterpretation) {
+
+			}
 
 
 
