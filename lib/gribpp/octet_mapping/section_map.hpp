@@ -14,8 +14,9 @@
 
 #include "../reader/octet_reader.hpp"
 #include "grib_edition.hpp"
-#include "grid_definition_template_map.hpp"
 #include "octet_map.hpp"
+#include "grid_definition_template/number.hpp"
+#include "grid_definition_template/map.hpp"
 
 
 namespace gribpp {
@@ -290,8 +291,8 @@ namespace gribpp {
 
 			}
 			else if (!sourceOfGribDefinition) {
-				auto gridDefinitionTemplateMap = make_grid_definition_template_map<grib_edition::V2>(
-						static_cast<grid_definition_template_number>(templateNumber), reader);
+				auto gridDefinitionTemplateMap =
+						grid_definition_template::make_map<grib_edition::V2>(grid_definition_template::number {templateNumber}, reader);
 				xx = *gridDefinitionTemplateMap.last_octet();
 			}
 			else {
