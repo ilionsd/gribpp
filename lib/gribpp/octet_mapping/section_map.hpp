@@ -22,7 +22,7 @@
 namespace gribpp {
 	namespace octet_mapping {
 
-		namespace _stdex = std::experimental;
+		namespace stdex = std::experimental;
 
 		using std::uint8_t;
 		using std::uint16_t;
@@ -146,11 +146,11 @@ namespace gribpp {
 
 
 		template<grib_edition V, unsigned N>
-		auto make_section_map(reader::octet_reader &r) -> _stdex::optional<section_map<V, N>>;
+		auto make_section_map(reader::octet_reader &r) -> stdex::optional<section_map<V, N>>;
 
 
 		template<>
-		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map<grib_edition::V2, 0>>
+		auto make_section_map(reader::octet_reader &reader) -> stdex::optional<section_map<grib_edition::V2, 0>>
 		{
 			//-- Section<0> constants definition --
 			constexpr std::size_t GRIB_MESSAGE_SIZE = 4;
@@ -183,7 +183,7 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader &reader) -> _stdex::optional<section_map<grib_edition::V2, 1>>
+		auto make_section_map(reader::octet_reader &reader) -> stdex::optional<section_map<grib_edition::V2, 1>>
 		{
 			std::size_t pos = reader.get_pos();
 
@@ -226,7 +226,7 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map<grib_edition::V2, 2>>
+		auto make_section_map(reader::octet_reader& reader) -> stdex::optional<section_map<grib_edition::V2, 2>>
 		{
 			std::size_t pos = reader.get_pos();
 
@@ -251,7 +251,7 @@ namespace gribpp {
 		};
 
 		template<>
-		auto make_section_map(reader::octet_reader& reader) -> _stdex::optional<section_map<grib_edition::V2, 3>>
+		auto make_section_map(reader::octet_reader& reader) -> stdex::optional<section_map<grib_edition::V2, 3>>
 		{
 			std::size_t pos = reader.get_pos();
 
@@ -285,6 +285,8 @@ namespace gribpp {
 
 			};
 
+			namespace gdt = grid_definition_template;
+
 			size_t xx;
 			if (sourceOfGribDefinition && templateNumber == 0xFF) {
 				//-- if octet 6 is not zero and template number is set to 0xFF, then grid definition template may not be supplied --
@@ -292,7 +294,7 @@ namespace gribpp {
 			}
 			else if (!sourceOfGribDefinition) {
 				auto gridDefinitionTemplateMap =
-						grid_definition_template::make_map<grib_edition::V2>(grid_definition_template::number {templateNumber}, reader);
+						gdt::make_map<grib_edition::V2>(gdt::to_number(templateNumber), reader);
 				xx = *gridDefinitionTemplateMap.last_octet();
 			}
 			else {

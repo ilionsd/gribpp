@@ -1,5 +1,5 @@
 /*
- * grid_definition_template_number.hpp
+ * number.hpp
  *
  *  Created on: Feb 18, 2017
  *      Author: ilion
@@ -8,154 +8,168 @@
 #ifndef _GRIBPP_OCTET_MAPPING_GRID_DEFINITION_TEMPLATE_NUMBER_HPP_
 #define _GRIBPP_OCTET_MAPPING_GRID_DEFINITION_TEMPLATE_NUMBER_HPP_
 
+#include <cstddef>
 #include <cstdint>
-#include <unordered_set>
+#include <array>
+#include <bits/functional_hash.h>
+#include <tuple>
+#include <type_traits>
+
+
+#include "../../../utility/fn/sequence_fn.hpp"
 
 
 namespace gribpp {
 	namespace octet_mapping {
 		namespace grid_definition_template {
 
-			using std::uint8_t;
+
+			using std::size_t;
 			using std::uint16_t;
+			using std::uint32_t;
 
 
-			struct flag {
-				using value_type = uint16_t;
 
-				static const value_type rotated			{1 << 0};
-				static const value_type stretched		{1 << 1};
-				static const value_type deformable		{1 << 2};
-				static const value_type variadic_size	{1 << 3};
+
+
+			enum class number_base : uint16_t {
+				latitude_longitude								= 0,
+				mercator										= 10,
+				polar_stereographic_projection					= 20,
+				lambert_conformal								= 30,
+				albert_equal_area								= 31,
+				gaussian_latitude_longitude						= 40,
+				shperical_harmonic_coefficients					= 50,
+				space_view_perspective							= 90,
+				triangilar_grid_based_on_icosahedron			= 100,
+				equatorial_azimuthal_equidestant_projection		= 110,
+				azimuth_range_projection						= 120,
+				cross_section_grid								= 1000,
+				hovmjoller_diagram_grid							= 1100,
+				time_section_grid								= 1200
 			};
 
 
+
+
+			enum class deformation : uint16_t {
+				none 		= 0,
+				rotated		= 1 << 0,
+				stretched	= 1 << 1
+			};
+
+
+			constexpr deformation operator | (const deformation x, const deformation y) {
+				return static_cast<deformation>(static_cast<uint16_t>(x) | static_cast<uint16_t>(y));
+			};
+			constexpr deformation operator & (const deformation x, const deformation y) {
+				return static_cast<deformation>(static_cast<uint16_t>(x) & static_cast<uint16_t>(y));
+			};
+
+
+			class number;
+			constexpr number to_number(const uint16_t val);
+			constexpr number to_number(const number_base val);
+
 			class number {
 			public:
-				using value_type = uint16_t;
-				using flag_type = flag::value_type;
+				static constexpr std::array<uint16_t, 12> deformable_templates { 0, 1, 2, 3, 40, 41, 42, 43, 50, 51, 52, 53 };
+				static constexpr std::array<uint16_t, 3> variadic_templates { 120, 1000, 1200 };
 
-				static const number latitude_longitude;
-				static const number mercator;
-				static const number polar_stereographic_projection;
-				static const number lambert_conformal;
-				static const number albert_equal_area;
-				static const number gaussian_latitude_longitude;
-				static const number shperical_harmonic_coefficients;
-				static const number space_view_perspective;
-				static const number triangilar_grid_based_on_icosahedron;
-				static const number equatorial_azimuthal_equidestant_projection;
-				static const number azimuth_range_projection;
-				static const number cross_section_grid;
-				static const number hovmjoller_diagram_grid;
-				static const number time_section_grid;
+				friend constexpr number to_number(const uint16_t val);
 
-				static const std::unordered_set<value_type> deformable_templates;
-				static const std::unordered_set<value_type> variadic_templates;
-
-				static value_type base_builder(const value_type val) {
-					value_type type = val;
-					if (deformable_templates.find(val) != deformable_templates.cend()) {
-						type = val / 10 * 10;
-					}
-					return type;
-				};
-
-				static flag_type flag_builder(const value_type val) {
-					flag_type flags = 0;
-					value_type div = val / 10;
-					value_type rem = val % 10;
-					if (deformable_templates.find(div * 10) != deformable_templates.cend()) {
-						flags |= flag::deformable;
-						if (rem & (1 << 0))
-							flags |= flag::rotated;
-						if (rem & (1 << 1))
-							flags |= flag::stretched;
-					}
-					if (variadic_templates.find(div * 10) != variadic_templates.cend()) {
-						flags |= flag::variadic_size;
-					}
-					return flags;
-				};
-
-				inline explicit number(const value_type n) :
-					mBase(base_builder(n)),
-					mFlags(flag_builder(n))
+				constexpr number(const number& other) :
+					mNumberInfo { other.mNumberInfo },
+					mDeformationFlags { other.mDeformationFlags }
 				{};
 
-
-				inline explicit operator value_type() const {
-					return base() + (flags() & (flag::rotated | flag::stretched));
+				constexpr explicit operator uint16_t() const {
+					return static_cast<uint16_t>(base()) + static_cast<uint16_t>(is_deformable() ? flags() : deformation::none);
 				};
-				inline value_type base() const {
-					return mBase;
-				};
-				inline flag_type flags() const {
-					return mFlags;
+				constexpr explicit operator uint32_t() const {
+					return static_cast<uint16_t>(*this);
 				};
 
-				inline bool is_rotated() const {
-					return (flags() & flag::rotated);
+				constexpr deformation flags() const {
+					return mDeformationFlags;
 				};
-				inline bool is_stretched() const {
-					return (flags() & flag::stretched);
+				constexpr number_base base() const {
+					return std::get<0>(mNumberInfo);
 				};
-				inline bool is_deformable() const {
-					return (flags() & flag::deformable);
+				constexpr bool is_deformable() const {
+					return std::get<1>(mNumberInfo);
 				};
-				inline bool is_variadic() const {
-					return (flags() & flag::variadic_size);
-				}
+				constexpr bool is_variadic() const {
+					return std::get<2>(mNumberInfo);
+				};
 
-				number operator | (const flag_type rhs) const {
-					return number {	base(), flags() | rhs };
+				constexpr number operator | (const deformation rhs) const {
+					return { mNumberInfo, is_deformable() ? flags() | rhs : deformation::none };
 				};
-				number operator & (const flag_type rhs) const {
-					return number { base(), flags() & rhs };
+				constexpr number operator & (const deformation rhs) const {
+					return { mNumberInfo, flags() & rhs };
 				};
 
 
 			private:
-				number(const value_type base, const flag_type flags) :
-					mBase(base),
-					mFlags(flags)
+				constexpr number(const std::tuple<number_base, bool, bool>& numberInfo, const deformation deformationFlags) :
+					mNumberInfo { numberInfo },
+					mDeformationFlags { deformationFlags }
 				{};
 
-				value_type mBase;
-				flag_type mFlags;
+				const std::tuple<number_base, bool, bool> mNumberInfo;
+				deformation mDeformationFlags;
+			};
+
+			constexpr std::array<uint16_t, 12> number::deformable_templates;
+			constexpr std::array<uint16_t, 3> number::variadic_templates;
+
+
+			constexpr number to_number(const uint16_t val) {
+				namespace fn = utility::fn;
+				auto map 	= fn::make_apply( fn::make_map( fn::unary<std::equal_to, decltype(val)>{ val } ) );
+				auto reduce	= fn::make_apply( fn::make_reduce( std::logical_or<bool>{} ) );
+
+				uint16_t base = val;
+				deformation flags = deformation::none;
+				bool isDeformable = false;
+				bool isVariadic = false;
+				if ( reduce( map(number::deformable_templates) ) ) {
+					base = val / 10 * 10;
+					flags = static_cast<deformation>(val % 10);
+					isDeformable = true;
+				}
+				if ( reduce( map(number::variadic_templates) ) ) {
+					isVariadic = true;
+				}
+
+				return { std::make_tuple(static_cast<number_base>(base), isDeformable, isVariadic), flags };
+			};
+
+			constexpr number to_number(const number_base val) { return to_number(static_cast<uint16_t>(val)); };
+
+
+			constexpr number operator | (const number_base n, const deformation x) {
+				return to_number(static_cast<uint16_t>(n)) | x;
+			};
+			constexpr number operator & (const number_base n, const deformation x) {
+				return to_number(static_cast<uint16_t>(n)) & x;
 			};
 
 
-			const number number::latitude_longitude								{	0,		flag::deformable};
-			const number number::mercator 										{	10	};
-			const number number::polar_stereographic_projection					{	20	};
-			const number number::lambert_conformal 								{	30	};
-			const number number::albert_equal_area								{	31	};
-			const number number::gaussian_latitude_longitude					{	40,	flag::deformable};
-			const number number::shperical_harmonic_coefficients				{	50,	flag::deformable};
-			const number number::space_view_perspective							{	90	};
-			const number number::triangilar_grid_based_on_icosahedron			{	100	};
-			const number number::equatorial_azimuthal_equidestant_projection	{	110	};
-			const number number::azimuth_range_projection						{	120,	flag::variadic_size};
-			const number number::cross_section_grid								{	1000,	flag::variadic_size};
-			const number number::hovmjoller_diagram_grid						{	1100	};
-			const number number::time_section_grid								{	1200,	flag::variadic_size};
 
-
-			const std::unordered_set<number::value_type>
-			number::deformable_templates {
-				number::latitude_longitude.base(),
-				number::gaussian_latitude_longitude.base(),
-				number::shperical_harmonic_coefficients.base()
+			struct number_hash : public std::__hash_base<size_t, number_base> {
+				size_t operator() (const number& val) const noexcept {
+					return static_cast<size_t>( static_cast<uint16_t>(val) );
+				};
 			};
 
-			const std::unordered_set<number::value_type>
-			number::variadic_templates {
-				number::azimuth_range_projection.base(),
-				number::cross_section_grid.base(),
-				number::time_section_grid.base()
+			struct number_equal_to : public std::binary_function<number, number, bool> {
+				bool
+				operator() (const number& x, const number& y) const {
+					return static_cast<uint16_t>(x) == static_cast<uint16_t>(y);
+				};
 			};
-
 
 
 		};	//-- namespace grid_definition_template --
