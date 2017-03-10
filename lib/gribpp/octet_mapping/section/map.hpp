@@ -159,7 +159,7 @@ namespace gribpp {
 
 				//--  --
 				std::unique_ptr<char[]> octets = std::make_unique<char[]>(GRIB_MESSAGE_SIZE);
-				std::size_t pos = reader.get_pos();
+				size_t pos = reader.get_pos();
 
 				reader(GRIB_MESSAGE_SIZE) >> octets;
 				int cmp = strncmp(GRIB_MESSAGE, octets.get(), GRIB_MESSAGE_SIZE);
@@ -186,7 +186,7 @@ namespace gribpp {
 			template<>
 			auto make_map(reader::octet_reader &reader) -> stdex::optional<map<grib_edition::V2, 1>>
 			{
-				std::size_t pos = reader.get_pos();
+				size_t pos = reader.get_pos();
 
 				uint32_t sectionSize;
 				uint8_t sectionNumber;
@@ -229,7 +229,7 @@ namespace gribpp {
 			template<>
 			auto make_map(reader::octet_reader& reader) -> stdex::optional<map<grib_edition::V2, 2>>
 			{
-				std::size_t pos = reader.get_pos();
+				size_t pos = reader.get_pos();
 
 				uint32_t sectionSize;
 				uint8_t sectionNumber;
@@ -254,7 +254,7 @@ namespace gribpp {
 			template<>
 			auto make_map(reader::octet_reader& reader) -> stdex::optional<map<grib_edition::V2, 3>>
 			{
-				std::size_t pos = reader.get_pos();
+				size_t pos = reader.get_pos();
 
 				uint32_t sectionSize;
 				uint8_t sectionNumber;
@@ -285,46 +285,45 @@ namespace gribpp {
 					{octets::GRID_DEFINITION_TEMPLATE_NUMBER, {12, 13} }
 				};
 
-				sectionMap.shift_mapping(reader.get_pos());
+				sectionMap.shift_mapping(pos);
+
 
 				namespace gdt = grid_definition_template;
 
-				size_t xx;
-				if (sourceOfGribDefinition && gdtNumber == 0xFF) {
-					//-- if octet 6 is not zero and template number is set to 0xFF, then grid definition template may not be supplied --
-
-				}
-				else if (!sourceOfGribDefinition) {
-					//-- building Grid Definition Template Map --
-					auto gdtMap =
-							gdt::make_map<grib_edition::V2>(gdt::to_number(gdtNumber), reader);
-					xx = *gdtMap.last_octet();
-					sectionMap[octets::GRID_DEFINITION_TEMPLATE] = { *sectionMap.last_octet() + 1, xx };
-				}
-				else {
+				//-- if octet 6 is not zero and template number is set to 0xFF, then grid definition template may not be supplied --
+				if (sourceOfGribDefinition && gdtNumber != 0xFF) {
 					//-- something wrong with bytes values --
 					return {};
 				}
+				else if (!sourceOfGribDefinition && gdtNumber != 0xFF) {
+					//-- building Grid Definition Template Map --
+					auto gdtMap = gdt::make_map<grib_edition::V2>(gdt::to_number(gdtNumber), reader);
+					size_t xx = *gdtMap.last_octet();
+					sectionMap[octets::GRID_DEFINITION_TEMPLATE] = { *sectionMap.last_octet() + 1, xx };
+				}
 
-				if (!optionalListLength && !optionalListInterpretation) {
-					//-- optional list of number of points is not present --
+
+				//-- if octet 11 and octet 12 is set to 0 then optional list of numbers of points is not present --
+				if ((bool)optionalListLength != (bool)optionalListInterpretation) {
+					//-- something wrong with bytes values --
+					return {};
 				}
 				else if (optionalListLength && optionalListInterpretation) {
 					//-- mapping numbers defining numbers of points --
-
+					size_t xx = *sectionMap.last_octet();
+					sectionMap[octets::OPTIONAL_LIST_OF_NUMBERS_DEFINING_NUMBER_OF_POINTS] = { xx + 1, xx + optionalListLength };
 				}
 
 
-
-
-
-				sectionMap.shift_mapping(pos);
 				reader.set_pos(*sectionMap.last_octet() + 1);
 
 				return sectionMap;
 			};
 
-
+			template<>
+			auto make_map(reader::octet_reader& reader) -> stdex::optional<map<grib_edition::V2, 4>> {
+				return {};
+			};
 
 
 		};	//-- namespace section --

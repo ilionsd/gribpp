@@ -17,7 +17,7 @@
 namespace gribpp {
 	namespace octet_mapping {
 
-		namespace _stdex = std::experimental;
+		namespace stdex = std::experimental;
 
 		using std::size_t;
 
@@ -60,7 +60,7 @@ namespace gribpp {
 				}
 			};
 
-			_stdex::optional<std::size_t> first_octet() const {
+			stdex::optional<std::size_t> first_octet() const {
 				if (empty())
 					return {};
 				else {
@@ -73,7 +73,7 @@ namespace gribpp {
 				}
 			};
 
-			_stdex::optional<std::size_t> last_octet() const {
+			stdex::optional<std::size_t> last_octet() const {
 				if (empty())
 					return {};
 				else {
@@ -90,7 +90,7 @@ namespace gribpp {
 			inline octet_map() :
 				mMapping()
 			{};
-			inline octet_map(const map_type& octetMap) :
+			inline explicit octet_map(const map_type& octetMap) :
 				mMapping(octetMap)
 			{};
 			inline octet_map(const octet_map& other) :
@@ -99,7 +99,7 @@ namespace gribpp {
 			inline octet_map(octet_map &&other) :
 				mMapping(std::move(other.mMapping))
 			{};
-			inline octet_map(std::initializer_list<value_type> initList) :
+			inline explicit octet_map(std::initializer_list<value_type> initList) :
 				mMapping(initList)
 			{};
 
