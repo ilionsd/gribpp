@@ -3,6 +3,6 @@
 
 #include "../lib/gribpp/reader/octet_reader.hpp"
 #include "../lib/gribpp/octet_mapping/grib_edition.hpp"
-#include "../lib/gribpp/octet_mapping/section_map.hpp"
+#include "../lib/gribpp/octet_mapping/section/map.hpp"
 
 #endif	//-- _GRIBPP_MAPPING_HPP_ --

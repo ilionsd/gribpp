@@ -103,6 +103,10 @@ namespace gribpp {
 				mMapping(initList)
 			{};
 
+			inline octet_map& operator= (const map_type& other) {
+				mMapping = other;
+				return (*this);
+			};
 			inline octet_map& operator= (const octet_map& other) {
 				mMapping = other.mMapping;
 				return (*this);

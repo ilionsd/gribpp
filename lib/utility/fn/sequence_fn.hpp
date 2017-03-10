@@ -26,7 +26,10 @@ namespace utility {
 
 			constexpr sequence_fn() : fn { F() }
 			{};
-			constexpr sequence_fn(F f) : fn { f }
+			constexpr sequence_fn(const F& f) : fn { f }
+			{};
+			constexpr sequence_fn(const sequence_fn<F>& other) :
+				fn { other.fn }
 			{};
 
 			const function_type& fn;
@@ -107,25 +110,33 @@ namespace utility {
 		template<typename F> constexpr auto make_apply(F f)		-> apply<F> 	{	return apply<F> { f };	};
 
 
-		template<template<typename > class F, typename T>
+		template<typename F>
 		class unary {
 		public:
-			using function_type = F<T>;
+			using function_type = F;
+			using saved_argument_type = typename function_type::first_argument_type;
+			using second_argument_type = typename function_type::second_argument_type;
 
-			constexpr unary() : fn {}, savedVal {}
+//			constexpr unary() :
+//				fn {},
+//				savedVal {}
+//			{};
+			constexpr unary(const saved_argument_type& val) :
+				fn {},
+				savedVal { val }
 			{};
-			constexpr unary(T val) : fn {}, savedVal { val }
-			{};
-			constexpr unary(function_type f, T val) : fn { f }, savedVal { val }
+			constexpr unary(const unary<function_type>& other) :
+				fn { other.fn },
+				savedVal {other.savedVal}
 			{};
 
-			constexpr auto operator() (const T& val) const {
+			constexpr auto operator() (const second_argument_type& val) const {
 				return this->fn(savedVal, val);
 			};
 
 		private:
 			const function_type& fn;
-			const T& savedVal;
+			const saved_argument_type& savedVal;
 		};
 
 

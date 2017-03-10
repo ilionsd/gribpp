@@ -108,6 +108,7 @@ namespace gribpp {
 				using mapped_type 	= typename map_type::mapped_type;
 
 				using cached_grid_definition_template_maps = std::unordered_map<number, map_type, number_hash, number_equal_to>;
+				using grid_definition_template_const_size_map = std::unordered_map<number, size_t, number_hash, number_equal_to>;
 
 
 				inline map(const number& n) :
@@ -127,12 +128,18 @@ namespace gribpp {
 					mGridDefinitionTemplateNumber(std::move(rhs.mGridDefinitionTemplateNumber))
 				{};
 
+				inline map& operator= (const map_type& other) {
+					base_type::operator=(other);
+					return (*this);
+				};
 				inline map& operator= (const map& other) {
 					base_type::operator =(other);
+					mGridDefinitionTemplateNumber = other.mGridDefinitionTemplateNumber;
 					return (*this);
 				};
 				inline map& operator= (map&& other) {
 					base_type::operator =(other);
+					mGridDefinitionTemplateNumber = other.mGridDefinitionTemplateNumber;
 					return (*this);
 				};
 				inline map& operator= (std::initializer_list<value_type> initList) {
@@ -148,7 +155,8 @@ namespace gribpp {
 					return mGridDefinitionTemplateNumber;
 				};
 
-				static const cached_grid_definition_template_maps definitionTemplateMap;
+				static const cached_grid_definition_template_maps gridDefinitionTemplateConstMap;
+				static const grid_definition_template_const_size_map gridDefinitionTemplateConstSize;
 
 			private:
 				number mGridDefinitionTemplateNumber;
@@ -157,7 +165,7 @@ namespace gribpp {
 
 			template<>
 			const map<grib_edition::V2>::cached_grid_definition_template_maps
-			map<grib_edition::V2>::definitionTemplateMap {
+			map<grib_edition::V2>::gridDefinitionTemplateConstMap {
 					{to_number(number_base::polar_stereographic_projection),
 						{
 							{octets::SHAPE_OF_THE_EARTH, {0, 0}},
@@ -182,41 +190,41 @@ namespace gribpp {
 					}
 			};
 
-//			template<>
-//			const grid_definition_template_size<grib_edition::V2>::grid_definition_template_static_size_map
-//			grid_definition_template_size<grib_edition::V2>::staticSize {
-//				{grid_definition_template_number::LATITUDE_LONGITUDE, 58},
-//				{grid_definition_template_number::ROTATED_LATITUDE_LONGITUDE, 70},
-//				{grid_definition_template_number::STRETCHED_LATITUDE_LONGITUDE, 70},
-//				{grid_definition_template_number::STRETCHED_AND_ROTATED_LATITUDE_LONGITUDE, 82},
-//
-//				{grid_definition_template_number::MERCATOR, 58},
-//
-//				{grid_definition_template_number::POLAR_STEREOGRAPHIC_PROJECTION, 41},
-//
-//				{grid_definition_template_number::LAMBERT_CONFORMAL, 67},
-//
-//				{grid_definition_template_number::ALBERS_EQUAL_AREA, 67},
-//
-//				{grid_definition_template_number::GAUSSIAN_LATITUDE_LONGITUDE, 58},
-//				{grid_definition_template_number::ROTATED_GAUSSIAN_LATITUDE_LONGITUDE, 70},
-//				{grid_definition_template_number::STRETCHED_GAUSSIAN_LATITUDE_LONGITUDE, 70},
-//				{grid_definition_template_number::STRETCHED_AND_ROTATED_GAUSSIAN_LATITUDE_LONGITUDE, 82},
-//
-//				{grid_definition_template_number::SHPERICAL_HARMONIC_COEFFICIENTS, 14},
-//				{grid_definition_template_number::ROTATED_SHPERICAL_HARMONIC_COEFFICIENTS, 26},
-//				{grid_definition_template_number::STRETCHED_SHPERICAL_HARMONIC_COEFFICIENTS, 26},
-//				{grid_definition_template_number::STRETCHED_AND_ROTATED_SHPERICAL_HARMONIC_COEFFICIENTS, 38},
-//
-//				{grid_definition_template_number::SPACE_VIEW_PERSPECTIVE, 66},
-//
-//				{grid_definition_template_number::TRIANGULAR_GRID_BASED_ON_ICOSAHEDRON, 24},
-//
-//				{grid_definition_template_number::EQUATORIAL_AZIMUTHAL_EQUIDISTANT_PROJECTION, 11},
-//
-//				{grid_definition_template_number::HOVMJOLLER_DIAGRAM_GRID, 68}
-//
-//			};
+			template<>
+			const map<grib_edition::V2>::grid_definition_template_const_size_map
+			map<grib_edition::V2>::gridDefinitionTemplateConstSize {
+				{static_cast<number>(number_base::latitude_longitude), 58},
+				{number_base::latitude_longitude | deformation::rotated, 70},
+				{number_base::latitude_longitude | deformation::stretched, 70},
+				{number_base::latitude_longitude | deformation::rotated | deformation::stretched, 82},
+
+				{static_cast<number>(number_base::mercator), 58},
+
+				{static_cast<number>(number_base::polar_stereographic_projection), 41},
+
+				{static_cast<number>(number_base::lambert_conformal), 67},
+
+				{static_cast<number>(number_base::albert_equal_area), 67},
+
+				{static_cast<number>(number_base::gaussian_latitude_longitude), 58},
+				{number_base::gaussian_latitude_longitude | deformation::rotated, 70},
+				{number_base::gaussian_latitude_longitude | deformation::stretched, 70},
+				{number_base::gaussian_latitude_longitude | deformation::rotated | deformation::stretched, 82},
+
+				{static_cast<number>(number_base::shperical_harmonic_coefficients), 14},
+				{number_base::shperical_harmonic_coefficients | deformation::rotated, 26},
+				{number_base::shperical_harmonic_coefficients | deformation::stretched, 26},
+				{number_base::shperical_harmonic_coefficients | deformation::rotated | deformation::stretched, 38},
+
+				{static_cast<number>(number_base::space_view_perspective), 66},
+
+				{static_cast<number>(number_base::triangilar_grid_based_on_icosahedron), 24},
+
+				{static_cast<number>(number_base::equatorial_azimuthal_equidestant_projection), 11},
+
+				{static_cast<number>(number_base::hovmjoller_diagram_grid), 68}
+
+			};
 
 
 			template<grib_edition V>
@@ -229,11 +237,18 @@ namespace gribpp {
 			{
 				size_t pos = r.get_pos();
 
-				map<grib_edition::V2> tdMap (n, map<grib_edition::V2>::definitionTemplateMap.at(n));
-				tdMap.shift_mapping(pos);
-				r.set_pos(*tdMap.last_octet() + 1);
+				map<grib_edition::V2> gtdMap(n);
+				if (!n.is_variadic()) {
+					//-- getting mapping from predefined map --
+					gtdMap = map<grib_edition::V2>::gridDefinitionTemplateConstMap.at(n);
+				}
+				else {
+					//-- reading to calculate correct map (to-do) --
+				}
+				gtdMap.shift_mapping(pos);
+				r.set_pos(*gtdMap.last_octet() + 1);
 
-				return tdMap;
+				return gtdMap;
 			};
 
 		};	//-- namespace grid_definition_template --
